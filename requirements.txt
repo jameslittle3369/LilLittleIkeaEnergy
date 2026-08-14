@@ -1,0 +1,27 @@
+# ikea_energy.py — deployment requirements (Linux / Docker / WSL2)
+#
+# The TRADFRI gateway speaks CoAP over DTLS-PSK (UDP 5684). The DTLS layer comes
+# from DTLSSocket, which PyPI publishes as a SOURCE TARBALL ONLY — there are no
+# wheels for any platform or Python version. Installing this file therefore needs
+# a build toolchain present:
+#
+#   Debian/Ubuntu: apt-get install -y build-essential autoconf automake libtool
+#
+# It will NOT install on stock Windows (no autoconf, no C compiler). For Windows
+# development use requirements-windows.txt and run with --demo.
+# See README.md "Deployment".
+
+# --- IKEA TRADFRI gateway client ---------------------------------------------
+pytradfri==14.0.0
+aiocoap>=0.4.7,<0.5
+DTLSSocket>=0.1.16,<0.2
+
+# --- configuration -----------------------------------------------------------
+python-dotenv>=1.0.1
+
+# --- report rendering --------------------------------------------------------
+matplotlib>=3.9,<4
+
+# --- AWS SES e-mail backend --------------------------------------------------
+# Only needed when EMAIL_BACKEND=ses. Harmless to leave installed for smtp.
+boto3>=1.34

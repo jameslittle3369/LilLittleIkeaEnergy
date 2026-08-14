@@ -1,0 +1,18 @@
+# ikea_energy.py — Windows development requirements.
+#
+# Everything EXCEPT the CoAP/DTLS transport, which cannot be built on stock
+# Windows (DTLSSocket ships source-only and needs autoconf + a C compiler).
+#
+# With this file you can develop and test the whole report pipeline:
+#
+#   python ikea_energy.py --demo --json
+#   python ikea_energy.py --demo --html-out out/report.html
+#   python ikea_energy.py --demo --email
+#
+# ...but NOT talk to a real gateway. For live gateway reads run under WSL2 or
+# Docker with requirements.txt. See README.md "Deployment".
+
+pytradfri==14.0.0
+python-dotenv>=1.0.1
+matplotlib>=3.9,<4
+boto3>=1.34

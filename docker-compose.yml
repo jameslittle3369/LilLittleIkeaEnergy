@@ -1,0 +1,41 @@
+# Convenience wrapper so the .env file and output volume are wired up for you.
+#
+#   docker compose build
+#   docker compose run --rm ikea-energy --json
+#   docker compose run --rm ikea-energy --email
+#   docker compose run --rm ikea-energy --pair
+#
+# Note: `docker compose run` (not `up`) -- this is a one-shot report, not a
+# long-running service. Schedule it with cron on the host.
+
+services:
+  ikea-energy:
+    build: .
+    image: ikea-energy:latest
+
+    # Secrets and configuration stay on the host, in the gitignored .env.
+    env_file:
+      - .env
+
+    environment:
+      # Containers run on UTC. The report header and subject line are rendered
+      # in local time, so set TZ in .env (e.g. TZ=Europe/Stockholm) or the
+      # 08:00 report will be stamped 06:00.
+      TZ: ${TZ:-UTC}
+
+    # The gateway is a LAN device. Default bridge networking reaches it fine, as
+    # long as the container host can. Uncomment host mode only if your gateway
+    # sits on a subnet the bridge cannot route to.
+    # network_mode: host
+
+    volumes:
+      - ./out:/app/out
+
+    # Reports are read-only work: no writes outside the mounted output dir.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

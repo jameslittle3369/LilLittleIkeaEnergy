@@ -1,0 +1,28 @@
+# --- secrets -----------------------------------------------------------------
+# The production .env holds the gateway PSK and SMTP/SES credentials.
+# NEVER commit it. .env.example is the committed template.
+.env
+.env.*
+!.env.example
+
+# --- generated reports -------------------------------------------------------
+out/
+*.png
+!docs/**/*.png
+
+# --- python ------------------------------------------------------------------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- editors / OS ------------------------------------------------------------
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
