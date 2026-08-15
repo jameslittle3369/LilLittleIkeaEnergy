@@ -5,14 +5,14 @@
 # putting that toolchain on your host -- impossible on stock Windows -- it is
 # confined to the builder stage here, and only the resulting wheels are shipped.
 #
-# Python 3.13 rather than 3.14: DTLSSocket is a Cython extension with no wheels
-# and no 3.14 testing, so the interpreter with the widest proven build surface is
-# the safer floor. Bump it once you have verified a build.
-
-# --------------------------------------------------------------------------- #
-# Builder: compile every dependency to a wheel.
-# --------------------------------------------------------------------------- #
-FROM python:3.13-slim AS builder
+# Python 3.14, to match the local dev venv. DTLSSocket (the one dependency that
+# compiles) is untested against 3.14 upstream, but its build already got past
+# the Cython/setup.py stage under cp314 in local testing on this project -- it
+# only failed on missing autoconf/a C compiler, both of which this builder
+# stage installs. If a Debian/arm64 build surfaces a real 3.14 incompatibility
+# (rather than a missing build tool), drop both FROM lines to python:3.13-slim;
+# nothing else in this file depends on the interpreter version.
+FROM python:3.14-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
@@ -29,7 +29,7 @@ RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 # --------------------------------------------------------------------------- #
 # Runtime: no compiler, no source tarballs, non-root.
 # --------------------------------------------------------------------------- #
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

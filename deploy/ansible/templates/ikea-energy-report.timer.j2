@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the IKEA Energy report on schedule
+
+[Timer]
+OnCalendar={{ ikea_energy_schedule }}
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

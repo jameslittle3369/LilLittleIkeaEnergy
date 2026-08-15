@@ -1,0 +1,14 @@
+[Unit]
+Description=IKEA Energy battery/status report
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ ikea_energy_app_dir }}
+# --fail-on-alert -> exit 2 when a device is critical, which systemd records
+# as a failed unit. `systemctl --failed` and journald both surface it, so
+# this doubles as a cheap health check without any extra monitoring stack.
+ExecStart=/usr/bin/docker compose run --rm ikea-energy --email --fail-on-alert --quiet
+TimeoutStartSec=300
