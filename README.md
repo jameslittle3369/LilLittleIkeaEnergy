@@ -22,8 +22,7 @@ a full device table.
 - [Install](#install)
   - [Docker](#docker-recommended-for-production)
   - [Raspberry Pi 4](#raspberry-pi-4)
-  - [WSL2 / Linux / macOS](#wsl2--linux--macos)
-  - [Windows (development)](#windows-development---demo-only)
+  - [Linux / macOS](#linux--macos)
 - [Creating the production `.env`](#creating-the-production-env)
   - [1. Gateway settings](#1-gateway-settings)
   - [2. Pair once to get a PSK](#2-pair-once-to-get-a-psk)
@@ -60,27 +59,23 @@ This project uses `pytradfri`.
 
 ## Read this before you install
 
-**The gateway transport cannot be built on stock Windows.**
+**The gateway transport needs a build toolchain.**
 
 TRÅDFRI speaks DTLS-PSK, which `pytradfri` gets from `DTLSSocket`. That package
 publishes **no wheels at all** — not for any platform, not for any Python
 version, in its entire release history. Installing it compiles a Cython
 extension around tinydtls, which requires `autoconf`, `automake`, `libtool` and
-a C compiler. On Windows that means MSYS2 plus MSVC Build Tools, and the
-alternative `libcoap` transport needs a `coap-client` binary that is equally
-unbuildable there.
+a C compiler.
 
 So pick one:
 
 | Where you run it | Live gateway reads | How |
 | --- | --- | --- |
 | **Docker** | ✅ | Recommended for production. Toolchain confined to the build stage. |
-| **WSL2 / Linux / macOS** | ✅ | `apt-get install build-essential autoconf automake libtool` |
-| **Windows, native** | ❌ | Report pipeline only, via `--demo`. Good enough for developing the report. |
+| **Linux / macOS** | ✅ | `apt-get install build-essential autoconf automake libtool` (Linux) or `brew install autoconf automake libtool` (macOS) |
 
-Everything except the gateway read — charts, HTML, JSON, SMTP, SES — works fine
-natively on Windows. `--demo` feeds the pipeline synthetic devices that exercise
-every status path, so you can build and test the whole report without a gateway.
+`--demo` feeds the pipeline synthetic devices that exercise every status path,
+so you can build and test the whole report without a gateway.
 
 ---
 
@@ -141,31 +136,20 @@ docker buildx build --platform linux/arm64 -t ikea-energy:latest --load .
 `python:3.13-slim` is multi-arch, so the same `Dockerfile` covers `amd64` and
 `arm64` with no changes.
 
-### WSL2 / Linux / macOS
+### Linux / macOS
 
 ```bash
+# Debian/Ubuntu
 sudo apt-get update
 sudo apt-get install -y build-essential autoconf automake libtool
+
+# macOS
+xcode-select --install
+brew install autoconf automake libtool
 
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### Windows (development, `--demo` only)
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements-windows.txt
-
-python ikea_energy.py --demo --html-out out\report.html
-```
-
-If PowerShell refuses to run the activate script:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ```
 
 ---
@@ -196,11 +180,7 @@ git status --short             # .env must NOT appear
 Start from the template:
 
 ```bash
-cp .env.example .env           # macOS / Linux / WSL
-```
-
-```powershell
-Copy-Item .env.example .env    # PowerShell
+cp .env.example .env
 ```
 
 Then work through the sections below. Every variable is documented inline in
@@ -396,7 +376,7 @@ python ikea_energy.py --json --quiet | jq '.devices[] | select(.battery_status==
 
 ## Scheduling
 
-### cron (Linux / WSL / the Docker host)
+### cron (Linux / the Docker host)
 
 ```cron
 # 08:00 daily. Absolute paths — cron's PATH and cwd are not yours.
@@ -407,15 +387,6 @@ With Docker:
 
 ```cron
 0 8 * * * cd /opt/ikeaenergy && /usr/bin/docker compose run --rm ikea-energy --email --quiet >> /var/log/ikea_energy.log 2>&1
-```
-
-### Windows Task Scheduler
-
-Native Windows can only run `--demo`, so schedule this on the Docker/WSL host
-instead. If you must drive it from Windows, have the task call WSL:
-
-```powershell
-wsl -d Ubuntu -- bash -lc "cd /opt/ikeaenergy && ./.venv/bin/python ikea_energy.py --email --quiet"
 ```
 
 ---
@@ -453,9 +424,9 @@ omitted entirely and the table carries the detail.
 ## Troubleshooting
 
 **`No CoAP/DTLS transport available`**
-You are on native Windows, or `pip install -r requirements.txt` failed to build
-`DTLSSocket`. See [Read this before you install](#read-this-before-you-install).
-Use Docker or WSL2, or `--demo`.
+`pip install -r requirements.txt` failed to build `DTLSSocket`. See
+[Read this before you install](#read-this-before-you-install). Use Docker, or
+`--demo`.
 
 **`Building wheel for DTLSSocket ... error` / `sh: autoconf: command not found`**
 The build toolchain is missing. On Debian/Ubuntu:

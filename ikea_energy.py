@@ -97,7 +97,7 @@ THEMES: dict[str, dict[str, str]] = {
 #: identical in both modes (the token is mode-invariant in the reference palette).
 DEEMPHASIS = "#898781"
 
-FONT_STACK = ["Segoe UI", "Helvetica Neue", "Arial", "DejaVu Sans", "sans-serif"]
+FONT_STACK = ["Helvetica Neue", "Arial", "DejaVu Sans", "sans-serif"]
 DPI = 150
 #: Charts are rendered wide and displayed at 600px, so they stay crisp on
 #: high-DPI screens while fitting the conventional e-mail column.
@@ -452,8 +452,7 @@ def _resolve_transport(cfg: Settings) -> str:
             "  Install one:   pip install -r requirements.txt   "
             "(needs autoconf + a C compiler)\n"
             "  Or provide a coap-client binary built with DTLS support.\n"
-            "  This cannot be built on stock Windows -- use WSL2 or Docker, "
-            "or run with --demo.\n"
+            "  Or run with --demo.\n"
             "  See README.md 'Deployment'."
         ) from None
     LOG.debug("transport auto -> aiocoap")

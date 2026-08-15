@@ -22,8 +22,7 @@
 #   # edit inventory.ini and group_vars/raspberrypi/vars.yml for your setup
 #   ansible-playbook playbook.yml --ask-vault-pass
 #
-# Must run from a POSIX controller (WSL2, Linux, macOS) -- ansible-core's
-# control node does not run on native Windows.
+# Must run from a POSIX controller (Linux, macOS).
 
 - name: Deploy ikea_energy.py to the Raspberry Pi
   hosts: raspberrypi

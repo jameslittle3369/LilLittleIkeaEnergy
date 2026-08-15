@@ -2,8 +2,8 @@
 #
 # Exists because the TRADFRI gateway's DTLS layer (DTLSSocket) is published as a
 # source tarball only and needs autoconf + a C compiler to build. Rather than
-# putting that toolchain on your host -- impossible on stock Windows -- it is
-# confined to the builder stage here, and only the resulting wheels are shipped.
+# putting that toolchain on your host, it is confined to the builder stage
+# here, and only the resulting wheels are shipped.
 #
 # Python 3.14, to match the local dev venv. DTLSSocket (the one dependency that
 # compiles) is untested against 3.14 upstream, but its build already got past
@@ -43,8 +43,8 @@ ENV PYTHONUNBUFFERED=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-# Charts fall back to matplotlib's bundled DejaVu Sans here, since Segoe UI is a
-# Windows font. Add fonts-dejavu-core only if you strip matplotlib's copy.
+# Charts fall back to matplotlib's bundled DejaVu Sans here. Add
+# fonts-dejavu-core only if you strip matplotlib's copy.
 COPY --from=builder /wheels /wheels
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-index --find-links=/wheels -r /tmp/requirements.txt \
