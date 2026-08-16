@@ -24,3 +24,6 @@ __pycache__/
 .vscode/
 .idea/
 .DS_Store
+
+# --- Vault
+deploy/ansible/group_vars/raspberrypi/vault.yml
