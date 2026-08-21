@@ -344,6 +344,9 @@ output:
   --json                 JSON snapshot to stdout (default if nothing else given)
   --email                send the HTML chart report
   --html-out PATH        write the HTML report and chart PNGs to PATH
+  --push-api             POST each battery device's reading to API_BASE_URL
+                         and exit -- no JSON/HTML/email output. This is what
+                         the scheduled/automated run uses (see sensors-ansible)
 
 source:
   --demo                 use built-in synthetic devices; contacts no gateway

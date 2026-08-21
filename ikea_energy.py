@@ -30,6 +30,11 @@ from email.utils import formataddr, make_msgid
 from pathlib import Path
 from typing import Any, Sequence
 
+try:
+    import requests
+except ImportError:  # pragma: no cover - dependency guard
+    requests = None  # only required for --push-api
+
 LOG = logging.getLogger("ikea_energy")
 
 # --------------------------------------------------------------------------- #
@@ -182,6 +187,7 @@ class Settings:
 
     output_dir: Path
     site_name: str
+    api_base_url: str
 
     @classmethod
     def load(cls, env_file: str | None = None) -> Settings:
@@ -257,6 +263,7 @@ class Settings:
             ses_configuration_set=_env("SES_CONFIGURATION_SET"),
             output_dir=Path(_env("REPORT_OUTPUT_DIR", "out")),
             site_name=_env("REPORT_SITE_NAME", "Home"),
+            api_base_url=_env("API_BASE_URL"),
         )
 
 
@@ -1475,6 +1482,44 @@ def _send_ses(msg: EmailMessage, cfg: Settings, recipients: list[str]) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# API push (--push-api)
+# --------------------------------------------------------------------------- #
+
+
+def push_devices_to_api(cfg: Settings, devices: list[DeviceSnapshot]) -> int:
+    """POST each battery-powered device's reading to sensors-backend-fastapi.
+
+    Used for the scheduled/automated run -- skips classification, charts,
+    JSON, and email entirely. Mains-powered devices (no battery to
+    report) are skipped rather than logging a fabricated value.
+    """
+    if requests is None:
+        sys.exit("--push-api needs the 'requests' package.  Run: pip install -r requirements.txt")
+    if not cfg.api_base_url:
+        sys.exit("--push-api needs API_BASE_URL set in .env")
+
+    base = cfg.api_base_url.rstrip("/")
+    battery_devices = [d for d in devices if d.has_battery]
+    pushed = 0
+    for dev in battery_devices:
+        url = f"{base}/ikea-devices/{dev.id}/log"
+        body = {
+            "name": dev.name,
+            "battery_pct": dev.battery_percent,
+            "last_seen_at": dev.last_seen,
+        }
+        try:
+            response = requests.post(url, json=body, timeout=10)
+            response.raise_for_status()
+            pushed += 1
+        except requests.RequestException as exc:
+            LOG.warning("failed to push device %r to API: %s", dev.name, exc)
+
+    LOG.info("pushed %d/%d battery device(s) to %s", pushed, len(battery_devices), base)
+    return 0 if pushed else 1
+
+
+# --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
 
@@ -1507,6 +1552,13 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--html-out",
         metavar="PATH",
         help="write the HTML report and chart PNGs to PATH instead of sending",
+    )
+    out.add_argument(
+        "--push-api",
+        action="store_true",
+        help="POST each battery device's reading to API_BASE_URL and exit -- "
+        "no JSON/HTML/email output. This is what the scheduled/automated "
+        "run uses.",
     )
     src = parser.add_argument_group("source")
     src.add_argument(
@@ -1570,6 +1622,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise GatewayError(
                 "The gateway returned no devices. Is anything paired to it?"
             )
+
+        if args.push_api:
+            return push_devices_to_api(cfg, devices)
 
         classify(devices, cfg)
         summary = summarise(devices, cfg)
