@@ -20,7 +20,6 @@ a full device table.
 - [Which gateway is this for?](#which-gateway-is-this-for)
 - [Read this before you install](#read-this-before-you-install)
 - [Install](#install)
-  - [Docker](#docker-recommended-for-production)
   - [Raspberry Pi 4](#raspberry-pi-4)
   - [Linux / macOS](#linux--macos)
 - [Creating the production `.env`](#creating-the-production-env)
@@ -67,11 +66,10 @@ version, in its entire release history. Installing it compiles a Cython
 extension around tinydtls, which requires `autoconf`, `automake`, `libtool` and
 a C compiler.
 
-So pick one:
+Install it with:
 
 | Where you run it | Live gateway reads | How |
 | --- | --- | --- |
-| **Docker** | ✅ | Recommended for production. Toolchain confined to the build stage. |
 | **Linux / macOS** | ✅ | `apt-get install build-essential autoconf automake libtool` (Linux) or `brew install autoconf automake libtool` (macOS) |
 
 `--demo` feeds the pipeline synthetic devices that exercise every status path,
@@ -80,14 +78,6 @@ so you can build and test the whole report without a gateway.
 ---
 
 ## Install
-
-### Docker (recommended for production)
-
-```bash
-cp .env.example .env      # then edit it — see the next section
-docker compose build
-docker compose run --rm ikea-energy --json
-```
 
 ### Raspberry Pi 4
 
@@ -103,7 +93,7 @@ The reason is wheel availability, not the Pi's speed:
 | --- | --- | --- |
 | matplotlib, numpy, pillow, contourpy, kiwisolver | prebuilt wheels | **none published** |
 | pydantic-core | prebuilt wheel | prebuilt wheel |
-| DTLSSocket | compiles in the builder stage | compiles in the builder stage |
+| DTLSSocket | compiles from source | compiles from source |
 
 On `aarch64` the only thing that compiles is `DTLSSocket`, which takes a couple
 of minutes; everything else is a wheel download. On `armv7l` you would also
@@ -113,28 +103,31 @@ and zlib headers and can exhaust RAM on a 2 GB Pi.
 ```bash
 uname -m                       # expect: aarch64
 
+sudo apt-get update
+sudo apt-get install -y build-essential autoconf automake libtool
+
 git clone <your-repo> /opt/ikeaenergy && cd /opt/ikeaenergy
 cp .env.example .env
 nano .env                      # see "Creating the production .env" below
 
-docker compose build           # a few minutes; DTLSSocket is the only compile
-docker compose run --rm ikea-energy --demo --json    # smoke test
-docker compose run --rm ikea-energy --pair           # then paste the PSK into .env
-docker compose run --rm ikea-energy --email
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt    # a couple of minutes; DTLSSocket is the only compile
+
+python ikea_energy.py --demo --json    # smoke test
+python ikea_energy.py --pair           # then paste the PSK into .env
+python ikea_energy.py --email
 ```
 
-**Set `TZ` in `.env`** (e.g. `TZ=Europe/Stockholm`). Containers run on UTC, and
-the report header and subject line are rendered in local time — without it an
-08:00 report arrives stamped 06:00.
+**Set `TZ` in the environment** (e.g. `export TZ=Europe/Stockholm`, or set it
+in the systemd unit/cron entry that runs this). The report header and subject
+line are rendered in local time — without it an 08:00 report can be stamped
+differently if the host's default timezone isn't what you expect.
 
-Cross-building from a faster machine is possible if the Pi build feels slow:
-
-```bash
-docker buildx build --platform linux/arm64 -t ikea-energy:latest --load .
-```
-
-`python:3.13-slim` is multi-arch, so the same `Dockerfile` covers `amd64` and
-`arm64` with no changes.
+(The fleet deployment in `sensors-ansible` provisions this exact venv — apt
+toolchain, `uv venv`, `uv pip install -r requirements.txt` — automatically; see
+that repo's `roles/app/tasks/apps.yml` if you're adding this app to the fleet
+rather than running it standalone.)
 
 ### Linux / macOS
 
@@ -209,7 +202,6 @@ traded once for a durable **pre-shared key**. Put the code in
 
 ```bash
 python ikea_energy.py --pair
-# Docker: docker compose run --rm ikea-energy --pair
 ```
 
 It prints the two lines to paste into `.env`:
@@ -326,7 +318,7 @@ python ikea_energy.py --demo --html-out out/report.html
 # 2. E-mail credentials and formatting, still no gateway.
 python ikea_energy.py --demo --email
 
-# 3. The real gateway. Linux/WSL/Docker only.
+# 3. The real gateway. Linux/WSL only.
 python ikea_energy.py --json
 
 # 4. The whole thing.
@@ -379,17 +371,11 @@ python ikea_energy.py --json --quiet | jq '.devices[] | select(.battery_status==
 
 ## Scheduling
 
-### cron (Linux / the Docker host)
+### cron (Linux)
 
 ```cron
 # 08:00 daily. Absolute paths — cron's PATH and cwd are not yours.
 0 8 * * * cd /opt/ikeaenergy && /opt/ikeaenergy/.venv/bin/python ikea_energy.py --email --quiet >> /var/log/ikea_energy.log 2>&1
-```
-
-With Docker:
-
-```cron
-0 8 * * * cd /opt/ikeaenergy && /usr/bin/docker compose run --rm ikea-energy --email --quiet >> /var/log/ikea_energy.log 2>&1
 ```
 
 ---
@@ -428,8 +414,8 @@ omitted entirely and the table carries the detail.
 
 **`No CoAP/DTLS transport available`**
 `pip install -r requirements.txt` failed to build `DTLSSocket`. See
-[Read this before you install](#read-this-before-you-install). Use Docker, or
-`--demo`.
+[Read this before you install](#read-this-before-you-install). Use `--demo`,
+or install the build toolchain (see above).
 
 **`Building wheel for DTLSSocket ... error` / `sh: autoconf: command not found`**
 The build toolchain is missing. On Debian/Ubuntu:
@@ -476,7 +462,5 @@ they are excluded from the battery chart and marked `mains` in the table.
   access. Treat it like a password.
 - Prefer IAM roles over static AWS keys; leave `AWS_ACCESS_KEY_ID` and
   `AWS_SECRET_ACCESS_KEY` empty to use the ambient credential chain.
-- The container runs as a non-root user (uid 10001) with a read-only root
-  filesystem, all capabilities dropped, and `no-new-privileges`.
 - Reports name your devices and their battery levels. That is mild, but it is
   household telemetry — think about who is on `EMAIL_TO`.
